@@ -54,7 +54,7 @@ def update_product_links(pages):
         dprint(f"Key: {orig_url} → {new_url}")
     return updated
 
-def extract_download_links(pages):
+def extract_os_versions(pages):
     """
     From each product-page HTML, pull out all links that share
     the same first three path components, de-dupe & sort.
@@ -71,7 +71,7 @@ def extract_download_links(pages):
             found.add(base + match.strip('"'))
     return set(sorted(found))
 
-def extract_server_links(pre_download):
+def extract_os_versions_html(pre_download):
     """Ignore the pre_download dict and re-fetch each URL to get a fresh Response."""
     return fetch_response(pre_download.keys())
 
@@ -83,13 +83,13 @@ def main():
     lib = update_product_links(lib)
 
     # 3) pull out all the “download” links
-    download_links = extract_download_links(lib)
+    download_links = extract_os_versions(lib)
 
     # 4) pre‐download stage (Response or Exception)
     pre_download = fetch_response(download_links)
 
     # 5) actual server‐link fetch (again)
-    download = extract_server_links(pre_download)
+    download = extract_os_versions_html(pre_download)
 
     # 6) write out only those URLs with exactly 5 slashes
     final = sorted(u for u in download if u.count("/") == 5)
