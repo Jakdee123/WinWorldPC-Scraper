@@ -41,17 +41,24 @@ def table_to_dicts(html_table):
     table = soup.find("table")
     rows = table.find_all("tr")
 
-    # Extract headers (from the first row)
     headers = [th.get_text(strip=True) for th in rows[0].find_all(["th", "td"])]
-
-    # Extract data rows
     data = []
+
     for row in rows[1:]:
-        cells = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
-        if len(cells) == len(headers):  # Skip malformed rows
+        cells = []
+        for cell in row.find_all(["td", "th"]):
+            a = cell.find("a")
+            if a and a.has_attr("href"):
+                href = a["href"]
+                text = a.get_text(strip=True)
+                cells.append({"text": text, "href": href})
+            else:
+                cells.append(cell.get_text(strip=True))
+        if len(cells) == len(headers):
             data.append(dict(zip(headers, cells)))
 
     return data
+
 
 
 def scrape_library():
