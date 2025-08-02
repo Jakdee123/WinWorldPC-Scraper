@@ -23,7 +23,7 @@ def fetch_text(urls):
         time.sleep(GRACE_PERIOD)
     return out
 
-def fetch_response(urls, timeout=10):
+def fetch_response(urls, timeout=100):
     """Fetch each URL and return a dict URL → Response or Exception."""
     out = {}
     for url in urls:
@@ -74,21 +74,24 @@ def update_product_links(pages):
     return updated
 
 def extract_os_versions(pages):
-    """
-    From each product-page HTML, pull out all links that share
-    the same first three path components, de-dupe & sort.
-    """
     base = "https://winworldpc.com"
     found = set()
     for url, html in pages.items():
-        if not html:
+        if not html or not url.startswith(base):
             continue
-        # e.g. turn "/product/os/xyz/whatever" → "/product/os/xyz"
-        rel = url[len(base) :].lstrip("/")
-        prefix = "/".join(rel.split("/")[:3])
-        for match in re.findall(rf'"{re.escape(prefix)}[^"]*"', html):
-            found.add(base + match.strip('"'))
+
+        rel = url[len(base):].lstrip("/")
+        prefix = "/"+"/".join(rel.split("/")[:2])
+        dprint(f"[{url}] → Prefix: {prefix}")
+
+        matches = re.findall(rf'"({re.escape(prefix)}[^"]*)"', html)
+        if not matches:
+            dprint(f"No matches for prefix '{prefix}' in {url}")
+        for match in matches:
+            full_url = base + match
+            found.add(full_url)
     return set(sorted(found))
+
 
 def extract_os_versions_html(pre_download):
     """Ignore the pre_download dict and re-fetch each URL to get a fresh Response."""
@@ -98,36 +101,50 @@ def find(text, var):
     return re.findall(text, var, re.DOTALL)
 
 def extract_downloads(not_final):
-    dict2 = {url: "" for url in not_final}
-    for url in dict2.keys():
-        dict2[url] = requests.get(url)
+    download_tables = {}
+    for url in not_final:
+        try:
+            response = requests.get(url)
+            html = response.text  # Extract the HTML text from the Response object
+            soup = BeautifulSoup(html, "html.parser")
+            tables = soup.find_all("table")
+            if tables:
+                # Process the first table (or adjust to handle multiple tables if needed)
+                download_tables[url] = table_to_dicts(str(tables[0]))
+                dprint(f"Extracted table from {url}")
+            else:
+                download_tables[url] = []
+                dprint(f"No tables found in {url}")
+            time.sleep(GRACE_PERIOD)
+        except Exception as e:
+            dprint(f"Failed to fetch or parse {url}: {e}")
+            download_tables[url] = []
         time.sleep(GRACE_PERIOD)
-    download_tables = {link: table_to_dicts(find("^<table.*?$</table>", html)) for link, html in dict2.items()}
     return download_tables
 
 def main():
     # 1) scrape product pages
     lib = scrape_library()
-
+    dprint(lib)
     # 2) normalize to real product URLs
     lib = update_product_links(lib)
-
+    dprint(lib)
     # 3) pull out all the “download” links
     download_links = extract_os_versions(lib)
-
+    dprint(download_links)
     # 4) pre‐download stage (Response or Exception)
     pre_download = fetch_response(download_links)
-
+    dprint(pre_download)
     # 5) actual server‐link fetch (again)
     download = extract_os_versions_html(pre_download)
-
+    dprint(download)
     # 6) write out only those URLs with exactly 5 slashes
     not_final = sorted(u for u in download if u.count("/") == 5)
-
-    final = extract_downloads(not_final)
-
+    dprint(not_final)
+    final7 = extract_downloads(not_final)
+    dprint(final7)
     with open("download_links.txt", "w") as f:
-        f.write(str(final))
+        f.write(str(final7))
 
 if __name__ == "__main__":
     main()
