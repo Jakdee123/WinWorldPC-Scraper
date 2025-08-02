@@ -1,6 +1,7 @@
 import requests
 import re
 import time
+from bs4 import BeautifulSoup
 
 DEBUG = True
 GRACE_PERIOD = 2/3  # seconds to wait between requests
@@ -34,6 +35,24 @@ def fetch_response(urls, timeout=10):
             out[url] = e
         time.sleep(GRACE_PERIOD)
     return out
+
+def table_to_dicts(html_table):
+    soup = BeautifulSoup(html_table, "html.parser")
+    table = soup.find("table")
+    rows = table.find_all("tr")
+
+    # Extract headers (from the first row)
+    headers = [th.get_text(strip=True) for th in rows[0].find_all(["th", "td"])]
+
+    # Extract data rows
+    data = []
+    for row in rows[1:]:
+        cells = [td.get_text(strip=True) for td in row.find_all(["td", "th"])]
+        if len(cells) == len(headers):  # Skip malformed rows
+            data.append(dict(zip(headers, cells)))
+
+    return data
+
 
 def scrape_library():
     base = "https://winworldpc.com"
@@ -75,6 +94,17 @@ def extract_os_versions_html(pre_download):
     """Ignore the pre_download dict and re-fetch each URL to get a fresh Response."""
     return fetch_response(pre_download.keys())
 
+def find(text, var):
+    return re.findall(text, var, re.DOTALL)
+
+def extract_downloads(not_final):
+    dict2 = {url: "" for url in not_final}
+    for url in dict2.keys():
+        dict2[url] = requests.get(url)
+        time.sleep(GRACE_PERIOD)
+    download_tables = {link: table_to_dicts(find("^<table.*?$</table>", html)) for link, html in dict2.items()}
+    return download_tables
+
 def main():
     # 1) scrape product pages
     lib = scrape_library()
@@ -92,9 +122,9 @@ def main():
     download = extract_os_versions_html(pre_download)
 
     # 6) write out only those URLs with exactly 5 slashes
-    final = sorted(u for u in download if u.count("/") == 5)
-    for u in final:
-        dprint("Added to final list:", u)
+    not_final = sorted(u for u in download if u.count("/") == 5)
+
+    final = extract_downloads(not_final)
 
     with open("download_links.txt", "w") as f:
         f.write(str(final))
