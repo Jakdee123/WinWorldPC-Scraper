@@ -3,26 +3,27 @@ import re
 import time
 from bs4 import BeautifulSoup
 
-DEBUG = True
+DEBUG = False
 GRACE_PERIOD = 2/3  # seconds to wait between requests
 
 class completion_Status(Exception): pass
 
-class functions:
-    class non_done:
-        list2=["almost_final2()", "final2()"]
+class functions():
+    class not_done():
+        list2=[]
 
     class func:
         @staticmethod
         def format_func_list(func):
+            func_names = [f.__name__ + "()" for f in functions.not_done.list2]
             if not func:
-                return ""
-            elif len(func) == 1:
-                return [func[0], False]
-            elif len(func) == 2:
-                return [f"{func[0]} and {func[1]}", True]
+                return ["",False]
+            elif len(func_names) == 1:
+                return [func_names[0], False]
+            elif len(func_names) == 2:
+                return [f"{func_names[0]} and {func_names[1]}", True]
             else:
-                return [f"{', '.join(func[:-1])}, and {func[-1]}", True]
+                return [f"{', '.join(func_names[:-1])}, and {func_names[-1]}", True]
 
         @staticmethod
         def uncomp(func):
@@ -161,6 +162,7 @@ class functions:
 
         def final2(almost_final):
             pass
+        
 
 def main():
 
@@ -196,7 +198,9 @@ def main():
         f.write(str(final))
 
 if __name__ == "__main__":
-    if not functions.non_done.list2:
+    functions.not_done.list2=[functions.func.almost_final2, functions.func.final2]
+
+    if not functions.not_done.list2 or DEBUG:
         main()
     else:
-        functions.func.uncomp(functions.non_done.list2)
+        functions.func.uncomp(functions.not_done.list2)
