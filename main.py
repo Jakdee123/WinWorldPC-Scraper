@@ -3,10 +3,14 @@ import re
 import time
 from bs4 import BeautifulSoup
 
-DEBUG = False
+DEBUG = True
 GRACE_PERIOD = 2/3  # seconds to wait between requests
 
 class completion_Status(Exception): pass
+
+def dprint(*args):
+            if DEBUG:
+                print(*args)
 
 class functions():
     class not_done():
@@ -32,11 +36,7 @@ class functions():
                 raise completion_Status(f"The functions: {formatted[0]} are not completed. Exiting...")
             else:
                 raise completion_Status(f"The function: {formatted[0]} is not completed. Exiting...")
-
-
-        def dprint(*args):
-            if DEBUG:
-                print(*args)
+        
 
         def fetch_text(urls):
             """Fetch each URL and return a dict URL → HTML text (or None on error)."""
@@ -44,9 +44,9 @@ class functions():
             for url in urls:
                 try:
                     out[url] = requests.get(url).text
-                    functions.func.dprint(f"Fetched (text): {url}")
+                    dprint(f"Fetched (text): {url}")
                 except Exception as e:
-                    functions.func.dprint(f"Failed (text): {url} — {e}")
+                    dprint(f"Failed (text): {url} — {e}")
                     out[url] = None
                 time.sleep(GRACE_PERIOD)
             return out
@@ -57,9 +57,9 @@ class functions():
             for url in urls:
                 try:
                     out[url] = requests.get(url, timeout=timeout)
-                    functions.func.dprint(f"Fetched (resp): {url}")
+                    dprint(f"Fetched (resp): {url}")
                 except Exception as e:
-                    functions.func.dprint(f"Failed (resp): {url} — {e}")
+                    dprint(f"Failed (resp): {url} — {e}")
                     out[url] = e
                 time.sleep(GRACE_PERIOD)
             return out
@@ -87,8 +87,6 @@ class functions():
 
             return data
 
-
-
         def scrape_library():
             base = "https://winworldpc.com"
             idx_html = requests.get(f"{base}/library/operating-systems").text
@@ -105,7 +103,7 @@ class functions():
                 m = re.search(r'<meta\s+property="og:url"\s+content="([^"]+)"', html)
                 new_url = m.group(1) if m else orig_url
                 updated[new_url] = html
-                functions.func.dprint(f"Key: {orig_url} → {new_url}")
+                dprint(f"Key: {orig_url} → {new_url}")
             return updated
 
         def extract_os_versions(pages):
@@ -117,11 +115,11 @@ class functions():
 
                 rel = url[len(base):].lstrip("/")
                 prefix = "/"+"/".join(rel.split("/")[:2])
-                functions.func.dprint(f"[{url}] → Prefix: {prefix}")
+                dprint(f"[{url}] → Prefix: {prefix}")
 
                 matches = re.findall(rf'"({re.escape(prefix)}[^"]*)"', html)
                 if not matches:
-                    functions.func.dprint(f"No matches for prefix '{prefix}' in {url}")
+                    dprint(f"No matches for prefix '{prefix}' in {url}")
                 for match in matches:
                     full_url = base + match
                     found.add(full_url)
@@ -146,19 +144,19 @@ class functions():
                     if tables:
                         # Process the first table (or adjust to handle multiple tables if needed)
                         download_tables[url] = functions.func.table_to_dicts(str(tables[0]))
-                        functions.func.dprint(f"Extracted table from {url}")
+                        dprint(f"Extracted table from {url}")
                     else:
                         download_tables[url] = []
-                        functions.func.dprint(f"No tables found in {url}")
+                        dprint(f"No tables found in {url}")
                     time.sleep(GRACE_PERIOD)
                 except Exception as e:
-                    functions.func.dprint(f"Failed to fetch or parse {url}: {e}")
+                    dprint(f"Failed to fetch or parse {url}: {e}")
                     download_tables[url] = []
                 time.sleep(GRACE_PERIOD)
             return download_tables
 
         def almost_final2(table):
-            pass
+            dprint(len(table))
 
         def final2(almost_final):
             pass
@@ -168,31 +166,31 @@ def main():
 
     # 1) scrape product pages
     lib = functions.func.scrape_library()
-    functions.func.dprint(lib)
+    dprint(lib)
     # 2) normalize to real product URLs
     lib = functions.func.update_product_links(lib)
-    functions.func.dprint(lib)
+    dprint(lib)
     # 3) pull out all the “download” links
     download_links = functions.func.extract_os_versions(lib)
-    functions.func.dprint(download_links)
+    dprint(download_links)
     # 4) pre‐download stage (Response or Exception)
     pre_download = functions.func.fetch_response(download_links)
-    functions.func.dprint(pre_download)
+    dprint(pre_download)
     # 5) actual server‐link fetch (again)
     download = functions.func.extract_os_versions_html(pre_download)
-    functions.func.dprint(download)
+    dprint(download)
     # 6) write out only those URLs with exactly 5 slashes
     not_final = sorted(u for u in download if u.count("/") == 5)
-    functions.func.dprint(not_final)
+    dprint(not_final)
 
     tables = functions.func.extract_downloads(not_final)
-    functions.func.dprint(tables)
+    dprint(tables)
 
     almost_final = functions.func.almost_final2(tables)
-    functions.func.dprint(almost_final)
+    dprint(almost_final)
 
     final = functions.func.final2(almost_final)
-    functions.func.dprint(final)
+    dprint(final)
 
     with open("download_links.txt", "w") as f:
         f.write(str(final))
