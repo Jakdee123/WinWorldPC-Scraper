@@ -79,7 +79,7 @@ class functions():
                     if a and a.has_attr("href"):
                         href = a["href"]
                         text = a.get_text(strip=True)
-                        cells.append({"text": text, "href": ("https://winworldpc.com/"+href)})
+                        cells.append({"text": text, "href": ("https://winworldpc.com"+href)})
                     else:
                         cells.append(cell.get_text(strip=True))
                 if len(cells) == len(headers):
