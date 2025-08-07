@@ -117,9 +117,9 @@ class WinWorldScraper:
                 download_id = href[len(f"{self.BASE_URL}/download"):]
                 servers = {}
                 if download_id + self.SERVER_1_ID in html:
-                    servers["server 1"] = f"{self.BASE_URL}{download_id}{self.SERVER_1_ID}"
+                    servers["server 1"] = f"{self.BASE_URL}/download{download_id}{self.SERVER_1_ID}"
                 if download_id + self.SERVER_2_ID in html:
-                    servers["server 2"] = f"{self.BASE_URL}{download_id}{self.SERVER_2_ID}"
+                    servers["server 2"] = f"{self.BASE_URL}/download{download_id}{self.SERVER_2_ID}"
                 if servers:
                     entry["download_with_servers"] = servers
 
